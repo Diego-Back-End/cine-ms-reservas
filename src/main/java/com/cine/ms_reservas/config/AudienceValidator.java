@@ -5,6 +5,11 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+/**
+ * Valida que el claim "aud" del JWT coincida con la audiencia esperada.
+ * Solo se registra desde {@link SecurityConfig}, activo para cualquier perfil
+ * distinto de "dev" (en dev no se valida token).
+ */
 public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
     private final String audience;
@@ -15,9 +20,13 @@ public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
     @Override
     public OAuth2TokenValidatorResult validate(Jwt token) {
+        // Si no se configuro audiencia, no se valida.
+        if (audience == null || audience.isBlank()) {
+            return OAuth2TokenValidatorResult.success();
+        }
         if (token.getAudience() != null) {
-            // v1 emite aud: api://{client-id}, v2 emite aud: {client-id} (GUID puro)
-            // Aceptar ambos para ser tolerante al requestedAccessTokenVersion
+            // v1 emite aud: api://{client-id}, v2 emite aud: {client-id} (GUID puro).
+            // Aceptar ambos para ser tolerante al requestedAccessTokenVersion.
             String stripped = audience.replace("api://", "");
             String apiForm = audience.startsWith("api://") ? audience : "api://" + audience;
             if (token.getAudience().contains(audience)

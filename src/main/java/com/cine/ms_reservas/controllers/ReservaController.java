@@ -1,16 +1,20 @@
 package com.cine.ms_reservas.controllers;
 
-import com.cine.ms_reservas.dto.ReservaRequest;
+import com.cine.ms_reservas.dto.AsientosOcupadosResponse;
+import com.cine.ms_reservas.dto.CrearReservaRequest;
 import com.cine.ms_reservas.dto.ReservaResponse;
 import com.cine.ms_reservas.services.ReservaService;
-import com.cine.ms_reservas.utils.SecurityUtils;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -22,30 +26,28 @@ public class ReservaController {
     private ReservaService reservaService;
 
     @PostMapping
-    public ResponseEntity<ReservaResponse> crearReserva(@Valid @RequestBody ReservaRequest request,
-                                                        @AuthenticationPrincipal Jwt jwt) {
-        String usuarioId = SecurityUtils.getUsuarioId(jwt);
-        ReservaResponse saved = reservaService.crear(request, usuarioId);
+    public ResponseEntity<ReservaResponse> crearReserva(@Valid @RequestBody CrearReservaRequest request) {
+        ReservaResponse saved = reservaService.crearReserva(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @GetMapping("/mis-reservas")
-    public ResponseEntity<List<ReservaResponse>> misReservas(@AuthenticationPrincipal Jwt jwt) {
-        String usuarioId = SecurityUtils.getUsuarioId(jwt);
-        return ResponseEntity.ok(reservaService.misReservas(usuarioId));
+    public ResponseEntity<List<ReservaResponse>> misReservas() {
+        return ResponseEntity.ok(reservaService.misReservas());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ReservaResponse> getReservaById(@PathVariable Long id,
-                                                          @AuthenticationPrincipal Jwt jwt) {
-        String usuarioId = SecurityUtils.getUsuarioId(jwt);
-        return ResponseEntity.ok(reservaService.obtenerPorId(id, usuarioId));
+    public ResponseEntity<ReservaResponse> obtenerPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(reservaService.obtenerPorId(id));
     }
 
     @PutMapping("/{id}/cancelar")
-    public ResponseEntity<ReservaResponse> cancelarReserva(@PathVariable Long id,
-                                                           @AuthenticationPrincipal Jwt jwt) {
-        String usuarioId = SecurityUtils.getUsuarioId(jwt);
-        return ResponseEntity.ok(reservaService.cancelar(id, usuarioId));
+    public ResponseEntity<ReservaResponse> cancelar(@PathVariable Long id) {
+        return ResponseEntity.ok(reservaService.cancelar(id));
+    }
+
+    @GetMapping("/funcion/{funcionId}/asientos-ocupados")
+    public ResponseEntity<AsientosOcupadosResponse> asientosOcupados(@PathVariable Long funcionId) {
+        return ResponseEntity.ok(reservaService.obtenerAsientosOcupados(funcionId));
     }
 }

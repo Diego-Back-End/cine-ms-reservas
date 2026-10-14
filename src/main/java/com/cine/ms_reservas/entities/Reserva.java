@@ -1,12 +1,20 @@
 package com.cine.ms_reservas.entities;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,22 +30,19 @@ public class Reserva {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Identificador del usuario autenticado, extraído del token (sub/oid). Sin FK a otros microservicios.
+    // Identificador del usuario autenticado. Sin FK a otros microservicios.
     @Column(name = "usuario_id", nullable = false, length = 100)
-    @NotBlank
     private String usuarioId;
 
-    // Referencia lógica a una función de ms-catalogo. Sin relación JPA entre microservicios.
+    // Referencia logica a una funcion de ms-catalogo. Solo se guarda el ID.
     @Column(name = "funcion_id", nullable = false)
-    @NotNull
     private Long funcionId;
 
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    @NotNull
-    private BigDecimal total;
+    @Column(nullable = false)
+    private Double total;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
