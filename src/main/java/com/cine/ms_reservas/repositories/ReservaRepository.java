@@ -15,6 +15,9 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     List<Reserva> findByUsuarioId(String usuarioId);
 
+    List<Reserva> findAllByEstadoAndFechaCreacionBefore(EstadoReserva estado,
+                                                        java.time.LocalDateTime fechaCreacion);
+
     /**
      * Devuelve los asientos ocupados de una funcion, considerando solo las
      * reservas en los estados indicados (PENDIENTE o CONFIRMADA).

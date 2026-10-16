@@ -13,6 +13,7 @@ import com.cine.ms_reservas.exceptions.RecursoNoEncontradoException;
 import com.cine.ms_reservas.repositories.ReservaRepository;
 import com.cine.ms_reservas.utils.UsuarioActual;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,9 @@ public class ReservaService {
 
     @Autowired
     private UsuarioActual usuarioActual;
+
+    @Autowired
+    private ReservaEventPublisher reservaEventPublisher;
 
     /**
      * Crea una reserva en estado PENDIENTE. Valida que ninguno de los asientos
@@ -63,11 +67,17 @@ public class ReservaService {
             ReservaAsiento reservaAsiento = new ReservaAsiento();
             reservaAsiento.setReserva(reserva);
             reservaAsiento.setAsiento(asiento);
+            reservaAsiento.setFuncionId(request.funcionId());
+            reservaAsiento.setAsientoActivo(asiento);
             reservaAsiento.setPrecio(request.precioUnitario());
             reserva.getAsientos().add(reservaAsiento);
         }
 
-        return toResponse(reservaRepository.save(reserva));
+        try {
+            return toResponse(reservaRepository.save(reserva));
+        } catch (DataIntegrityViolationException ex) {
+            throw new AsientosOcupadosException(asientos);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -89,6 +99,34 @@ public class ReservaService {
     }
 
     /**
+     * Confirma una reserva propia que este PENDIENTE. Cambia su estado a
+     * CONFIRMADA y publica el mensaje de confirmacion (asincrono, despues del
+     * commit) usando el email del usuario actual. Este es el metodo que usara
+     * la pasarela de pago cuando el pago se apruebe.
+     */
+    public ReservaResponse confirmar(Long id) {
+        Reserva reserva = buscarPropia(id);
+        if (reserva.getEstado() != EstadoReserva.PENDIENTE) {
+            throw new OperacionInvalidaException("Solo se pueden confirmar reservas en estado PENDIENTE");
+        }
+        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        Reserva confirmada = reservaRepository.save(reserva);
+
+        List<String> asientos = confirmada.getAsientos().stream()
+                .map(ReservaAsiento::getAsiento)
+                .toList();
+        reservaEventPublisher.publicarReservaConfirmada(
+                confirmada.getId(),
+                confirmada.getUsuarioId(),
+                usuarioActual.getEmail(),
+                confirmada.getFuncionId(),
+                asientos,
+                confirmada.getTotal());
+
+        return toResponse(confirmada);
+    }
+
+    /**
      * Cancela una reserva propia que este PENDIENTE o CONFIRMADA. Al pasar a
      * CANCELADA sus asientos dejan de contarse como ocupados (la consulta de
      * asientos ocupados solo considera PENDIENTE y CONFIRMADA), por lo que
@@ -100,8 +138,22 @@ public class ReservaService {
                 && reserva.getEstado() != EstadoReserva.CONFIRMADA) {
             throw new OperacionInvalidaException("Solo se pueden cancelar reservas en estado PENDIENTE o CONFIRMADA");
         }
+        liberarAsientosReserva(reserva);
         reserva.setEstado(EstadoReserva.CANCELADA);
         return toResponse(reservaRepository.save(reserva));
+    }
+
+    /**
+     * Metodo centralizado para liberar los asientos de una reserva.
+     * Pone asientoActivo = null en todos sus ReservaAsiento dentro de la misma transaccion.
+     */
+    public void liberarAsientosReserva(Reserva reserva) {
+        if (reserva == null || reserva.getAsientos() == null) {
+            return;
+        }
+        for (ReservaAsiento ra : reserva.getAsientos()) {
+            ra.setAsientoActivo(null);
+        }
     }
 
     private Reserva buscarPropia(Long id) {

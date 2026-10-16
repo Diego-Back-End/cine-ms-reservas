@@ -41,6 +41,13 @@ public class ReservaController {
         return ResponseEntity.ok(reservaService.obtenerPorId(id));
     }
 
+    // TODO: endpoint temporal. Eliminar cuando exista la pasarela de pago,
+    // que sera la encargada de llamar a ReservaService.confirmar(id).
+    @PutMapping("/{id}/confirmar")
+    public ResponseEntity<ReservaResponse> confirmar(@PathVariable Long id) {
+        return ResponseEntity.ok(reservaService.confirmar(id));
+    }
+
     @PutMapping("/{id}/cancelar")
     public ResponseEntity<ReservaResponse> cancelar(@PathVariable Long id) {
         return ResponseEntity.ok(reservaService.cancelar(id));
