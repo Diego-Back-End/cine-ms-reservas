@@ -1,10 +1,10 @@
 package com.cine.ms_reservas.services;
 
+import com.cine.ms_reservas.config.RabbitConfig;
 import com.cine.ms_reservas.dto.ReservaConfirmadaMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
@@ -32,9 +32,6 @@ public class ReservaEventPublisher {
     private final RabbitTemplate rabbitTemplate;
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    @Value("${app.rabbitmq.queue.reserva-confirmada}")
-    private String reservaConfirmadaQueue;
-
     public void publicarReservaConfirmada(Long reservaId,
                                           String usuarioId,
                                           String emailUsuario,
@@ -49,9 +46,11 @@ public class ReservaEventPublisher {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void enviarReservaConfirmada(ReservaConfirmadaMessage message) {
         try {
-            rabbitTemplate.convertAndSend(reservaConfirmadaQueue, message);
-            log.info("Evento de reserva confirmada enviado a RabbitMQ (cola={}): reservaId={}",
-                    reservaConfirmadaQueue, message.getReservaId());
+            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_RESERVAS,
+                    RabbitConfig.ROUTING_KEY_RESERVA_CONFIRMADA, message);
+            log.info("Evento de reserva confirmada enviado a RabbitMQ (exchange={}, routingKey={}): reservaId={}",
+                    RabbitConfig.EXCHANGE_RESERVAS, RabbitConfig.ROUTING_KEY_RESERVA_CONFIRMADA,
+                    message.getReservaId());
         } catch (Exception e) {
             log.error("No se pudo enviar el evento de la reserva {} a RabbitMQ: {}",
                     message.getReservaId(), e.getMessage(), e);
