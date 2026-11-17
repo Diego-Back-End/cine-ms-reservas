@@ -5,12 +5,20 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.util.List;
+
 /**
- * Valida que el claim "aud" del JWT coincida con la audiencia esperada.
- * Solo se registra desde {@link SecurityConfig}, activo para cualquier perfil
- * distinto de "dev" (en dev no se valida token).
+ * Valida que el JWT sea un ID token de Amazon Cognito:
+ * <ul>
+ *   <li>El claim "aud" debe contener el client id configurado.</li>
+ *   <li>El claim "token_use" debe ser exactamente "id".</li>
+ * </ul>
+ * Solo se registra desde {@link SecurityConfig}.
  */
 public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
+
+    private static final String TOKEN_USE_CLAIM = "token_use";
+    private static final String EXPECTED_TOKEN_USE = "id";
 
     private final String audience;
 
@@ -20,26 +28,25 @@ public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
     @Override
     public OAuth2TokenValidatorResult validate(Jwt token) {
-        // Si no se configuro audiencia, no se valida.
         if (audience == null || audience.isBlank()) {
-            return OAuth2TokenValidatorResult.success();
+            return failure("La audiencia esperada (COGNITO_CLIENT_ID) no esta configurada");
         }
-        if (token.getAudience() != null) {
-            // v1 emite aud: api://{client-id}, v2 emite aud: {client-id} (GUID puro).
-            // Aceptar ambos para ser tolerante al requestedAccessTokenVersion.
-            String stripped = audience.replace("api://", "");
-            String apiForm = audience.startsWith("api://") ? audience : "api://" + audience;
-            if (token.getAudience().contains(audience)
-                    || token.getAudience().contains(stripped)
-                    || token.getAudience().contains(apiForm)) {
-                return OAuth2TokenValidatorResult.success();
-            }
+
+        List<String> audiences = token.getAudience();
+        if (audiences == null || !audiences.contains(audience)) {
+            return failure("La audiencia es invalida, se esperaba: " + audience);
         }
-        OAuth2Error error = new OAuth2Error(
-                "invalid_token",
-                "La audiencia es invalida, se esperaba: " + audience + " (se acepta GUID puro o con prefijo api://)",
-                null
-        );
+
+        String tokenUse = token.getClaimAsString(TOKEN_USE_CLAIM);
+        if (!EXPECTED_TOKEN_USE.equals(tokenUse)) {
+            return failure("El token debe ser un ID token (token_use=id)");
+        }
+
+        return OAuth2TokenValidatorResult.success();
+    }
+
+    private OAuth2TokenValidatorResult failure(String description) {
+        OAuth2Error error = new OAuth2Error("invalid_token", description, null);
         return OAuth2TokenValidatorResult.failure(error);
     }
 }
