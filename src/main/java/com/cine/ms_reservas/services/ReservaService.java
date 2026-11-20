@@ -2,6 +2,7 @@ package com.cine.ms_reservas.services;
 
 import com.cine.ms_reservas.dto.AsientosOcupadosResponse;
 import com.cine.ms_reservas.dto.CrearReservaRequest;
+import com.cine.ms_reservas.dto.ReservaFallidaMessage;
 import com.cine.ms_reservas.dto.ReservaResponse;
 import com.cine.ms_reservas.entities.EstadoReserva;
 import com.cine.ms_reservas.entities.Reserva;
@@ -58,6 +59,7 @@ public class ReservaService {
 
         Reserva reserva = new Reserva();
         reserva.setUsuarioId(usuarioActual.getUsuarioId());
+        reserva.setEmail(usuarioActual.getEmail());
         reserva.setFuncionId(request.funcionId());
         reserva.setFechaCreacion(LocalDateTime.now());
         reserva.setEstado(EstadoReserva.PENDIENTE);
@@ -140,7 +142,13 @@ public class ReservaService {
         }
         liberarAsientosReserva(reserva);
         reserva.setEstado(EstadoReserva.CANCELADA);
-        return toResponse(reservaRepository.save(reserva));
+        Reserva cancelada = reservaRepository.save(reserva);
+        reservaEventPublisher.publicarReservaFallida(new ReservaFallidaMessage(
+                cancelada.getId(),
+                cancelada.getEmail(),
+                cancelada.getFuncionId(),
+                "CANCELADA_POR_USUARIO"));
+        return toResponse(cancelada);
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.cine.ms_reservas.services;
 
+import com.cine.ms_reservas.dto.ReservaFallidaMessage;
 import com.cine.ms_reservas.entities.EstadoReserva;
 import com.cine.ms_reservas.entities.Reserva;
 import com.cine.ms_reservas.repositories.ReservaRepository;
@@ -18,14 +19,17 @@ public class ReservaExpiracionTask {
 
     private final ReservaRepository reservaRepository;
     private final ReservaService reservaService;
+    private final ReservaEventPublisher reservaEventPublisher;
 
     @Value("${app.reserva.tiempo-expiracion-minutos:10}")
     private int tiempoExpiracionMinutos;
 
     public ReservaExpiracionTask(ReservaRepository reservaRepository,
-                                 ReservaService reservaService) {
+                                 ReservaService reservaService,
+                                 ReservaEventPublisher reservaEventPublisher) {
         this.reservaRepository = reservaRepository;
         this.reservaService = reservaService;
+        this.reservaEventPublisher = reservaEventPublisher;
     }
 
     /**
@@ -45,10 +49,18 @@ public class ReservaExpiracionTask {
         }
         int count = 0;
         for (Reserva reserva : expiradas) {
+            if (reserva.getEstado() == EstadoReserva.CANCELADA) {
+                continue;
+            }
             try {
                 reservaService.liberarAsientosReserva(reserva);
                 reserva.setEstado(EstadoReserva.CANCELADA);
                 reservaRepository.save(reserva);
+                reservaEventPublisher.publicarReservaFallida(new ReservaFallidaMessage(
+                        reserva.getId(),
+                        reserva.getEmail(),
+                        reserva.getFuncionId(),
+                        "EXPIRADA"));
                 count++;
             } catch (Exception e) {
                 log.error("No se pudo cancelar la reserva expirada id={}: {}", reserva.getId(), e.getMessage(), e);

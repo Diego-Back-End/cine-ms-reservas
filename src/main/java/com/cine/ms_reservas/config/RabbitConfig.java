@@ -11,6 +11,7 @@ public class RabbitConfig {
 
     public static final String EXCHANGE_RESERVAS = "reservas.exchange";
     public static final String ROUTING_KEY_RESERVA_CONFIRMADA = "reserva.confirmada";
+    public static final String ROUTING_KEY_RESERVA_FALLIDA = "reserva.fallida";
 
     @Bean
     public TopicExchange reservasExchange() {

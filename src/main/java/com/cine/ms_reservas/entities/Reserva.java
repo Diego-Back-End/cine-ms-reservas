@@ -34,6 +34,9 @@ public class Reserva {
     @Column(name = "usuario_id", nullable = false, length = 100)
     private String usuarioId;
 
+    @Column(name = "email", length = 255)
+    private String email;
+
     // Referencia logica a una funcion de ms-catalogo. Solo se guarda el ID.
     @Column(name = "funcion_id", nullable = false)
     private Long funcionId;

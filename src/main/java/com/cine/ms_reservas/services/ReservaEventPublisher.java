@@ -2,6 +2,7 @@ package com.cine.ms_reservas.services;
 
 import com.cine.ms_reservas.config.RabbitConfig;
 import com.cine.ms_reservas.dto.ReservaConfirmadaMessage;
+import com.cine.ms_reservas.dto.ReservaFallidaMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -53,6 +54,29 @@ public class ReservaEventPublisher {
                     message.getReservaId());
         } catch (Exception e) {
             log.error("No se pudo enviar el evento de la reserva {} a RabbitMQ: {}",
+                    message.getReservaId(), e.getMessage(), e);
+        }
+    }
+
+    public void publicarReservaFallida(ReservaFallidaMessage message) {
+        try {
+            applicationEventPublisher.publishEvent(message);
+        } catch (Exception e) {
+            log.error("No se pudo publicar el evento de reserva fallida reservaId={}: {}",
+                    message.getReservaId(), e.getMessage(), e);
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void enviarReservaFallida(ReservaFallidaMessage message) {
+        try {
+            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_RESERVAS,
+                    RabbitConfig.ROUTING_KEY_RESERVA_FALLIDA, message);
+            log.info("Evento de reserva fallida enviado a RabbitMQ (exchange={}, routingKey={}): reservaId={}, motivo={}",
+                    RabbitConfig.EXCHANGE_RESERVAS, RabbitConfig.ROUTING_KEY_RESERVA_FALLIDA,
+                    message.getReservaId(), message.getMotivo());
+        } catch (Exception e) {
+            log.error("No se pudo enviar el evento de reserva fallida de la reserva {} a RabbitMQ: {}",
                     message.getReservaId(), e.getMessage(), e);
         }
     }
