@@ -2,6 +2,7 @@ package com.cine.ms_reservas.services;
 
 import com.cine.ms_reservas.dto.AsientosOcupadosResponse;
 import com.cine.ms_reservas.dto.CrearReservaRequest;
+import com.cine.ms_reservas.dto.ReservaConfirmadaKafkaMessage;
 import com.cine.ms_reservas.dto.ReservaFallidaMessage;
 import com.cine.ms_reservas.dto.ReservaResponse;
 import com.cine.ms_reservas.entities.EstadoReserva;
@@ -11,6 +12,7 @@ import com.cine.ms_reservas.exceptions.AccesoDenegadoException;
 import com.cine.ms_reservas.exceptions.AsientosOcupadosException;
 import com.cine.ms_reservas.exceptions.OperacionInvalidaException;
 import com.cine.ms_reservas.exceptions.RecursoNoEncontradoException;
+import com.cine.ms_reservas.kafka.ReservaKafkaProducer;
 import com.cine.ms_reservas.repositories.ReservaRepository;
 import com.cine.ms_reservas.utils.UsuarioActual;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +39,9 @@ public class ReservaService {
 
     @Autowired
     private ReservaEventPublisher reservaEventPublisher;
+
+    @Autowired
+    private ReservaKafkaProducer reservaKafkaProducer;
 
     /**
      * Crea una reserva en estado PENDIENTE. Valida que ninguno de los asientos
@@ -124,6 +129,14 @@ public class ReservaService {
                 confirmada.getFuncionId(),
                 asientos,
                 confirmada.getTotal());
+
+        reservaKafkaProducer.publicarReservaConfirmada(new ReservaConfirmadaKafkaMessage(
+                confirmada.getId(),
+                usuarioActual.getEmail(),
+                confirmada.getFuncionId(),
+                asientos,
+                confirmada.getTotal(),
+                confirmada.getFechaCreacion()));
 
         return toResponse(confirmada);
     }
